@@ -61,7 +61,19 @@ class RegressionModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
+        # Hidden layers - 1
+        #Hidden layer size - 3
+        h1_size = 1
+        input_size = 1
+        output_size = 1
+        self.batch_size = 1
+        self.W1 = nn.Parameter(input_size,h1_size)
+        self.b1 = nn.Parameter(1,h1_size)
+        self.W2 = nn.Parameter(h1_size,output_size)
+        self.b2 = nn.Parameter(1,output_size)
 
+    def ReLU_output(self,x,W,b):
+        return (nn.ReLU(nn.AddBias(nn.Linear(x,W),b)))
     def run(self, x):
         """
         Runs the model for a batch of examples.
@@ -72,6 +84,10 @@ class RegressionModel(object):
             A node with shape (batch_size x 1) containing predicted y-values
         """
         "*** YOUR CODE HERE ***"
+        return self.ReLU_output(x,self.W1,self.b1)
+        # return self.ReLU_output(h1,self.W2,self.b2)
+
+
 
     def get_loss(self, x, y):
         """
@@ -84,12 +100,24 @@ class RegressionModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
+        return nn.SquareLoss(x,y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
+        alpha = -0.005
+        for i in range(100):
+            for x,y in dataset.iterate_once(self.batch_size):
+                predicted_y = self.run(x)
+                loss = self.get_loss(predicted_y,y)
+                grad_wrt_w1, grad_wrt_b = nn.gradients(loss, [self.W1, self.b1])
+                self.W1.update(grad_wrt_w1,alpha)
+                self.b1.update(grad_wrt_b,alpha)
+
+
+
 
 class DigitClassificationModel(object):
     """
