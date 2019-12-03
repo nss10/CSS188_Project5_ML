@@ -61,16 +61,24 @@ class RegressionModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
-        # Hidden layers - 1
-        #Hidden layer size - 3
-        h1_size = 1
-        input_size = 1
-        output_size = 1
-        self.batch_size = 1
-        self.W1 = nn.Parameter(input_size,h1_size)
-        self.b1 = nn.Parameter(1,h1_size)
-        self.W2 = nn.Parameter(h1_size,output_size)
-        self.b2 = nn.Parameter(1,output_size)
+        self.hidden_layer_size_list = [10,15,10]
+        self.input_size = 1
+        self.output_size = 1
+        self.batch_size = 2
+        self.param_list=[]
+        for layer_size in self.hidden_layer_size_list:
+            self.add_hidden_layer(layer_size)
+            
+        self.add_hidden_layer(self.output_size)
+
+    def add_hidden_layer(self,layer_size):
+        if(len(self.param_list)>0):
+            prev_layer_size = self.param_list[-1].data.shape[1]
+        else:
+            prev_layer_size = self.input_size
+        print(prev_layer_size,layer_size)
+        self.param_list.append(nn.Parameter(prev_layer_size,layer_size))
+        self.param_list.append(nn.Parameter(1,layer_size))
 
     def ReLU_output(self,x,W,b):
         return (nn.ReLU(nn.AddBias(nn.Linear(x,W),b)))
@@ -84,8 +92,15 @@ class RegressionModel(object):
             A node with shape (batch_size x 1) containing predicted y-values
         """
         "*** YOUR CODE HERE ***"
-        return self.ReLU_output(x,self.W1,self.b1)
-        # return self.ReLU_output(h1,self.W2,self.b2)
+
+        h=x
+        for i in range(len(self.param_list)):
+            '''Running logic the hidden layers'''
+            if(i%2==0 and i < len(self.param_list)-2):
+                h =  self.ReLU_output(h,self.param_list[i],self.param_list[i+1])
+        
+        '''For output layer'''
+        return nn.AddBias(nn.Linear(h,self.param_list[-2]),self.param_list[-1])
 
 
 
@@ -100,7 +115,7 @@ class RegressionModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
-        return nn.SquareLoss(x,y)
+        return nn.SquareLoss(self.run(x),y)
 
     def train(self, dataset):
         """
@@ -108,13 +123,22 @@ class RegressionModel(object):
         """
         "*** YOUR CODE HERE ***"
         alpha = -0.005
-        for i in range(100):
+        convergent = False
+        iter=0
+        while(not convergent):
+            final_loss = 0
+            iter+=1
             for x,y in dataset.iterate_once(self.batch_size):
-                predicted_y = self.run(x)
-                loss = self.get_loss(predicted_y,y)
-                grad_wrt_w1, grad_wrt_b = nn.gradients(loss, [self.W1, self.b1])
-                self.W1.update(grad_wrt_w1,alpha)
-                self.b1.update(grad_wrt_b,alpha)
+                loss = self.get_loss(x,y)
+                grad_param_list = nn.gradients(loss, self.param_list)
+                for i in range(len(self.param_list)):
+                    self.param_list[i].update(grad_param_list[i],alpha)
+                
+            final_loss = self.get_loss(nn.Constant(dataset.x), nn.Constant(dataset.y))  # Convergence condition ripped off from autograder.py
+            if(nn.as_scalar(final_loss)<0.02):
+                print(str(iter)+ "-  " + str(nn.as_scalar(final_loss)))
+                convergent = True
+
 
 
 
@@ -136,6 +160,29 @@ class DigitClassificationModel(object):
     def __init__(self):
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
+        from datetime import datetime
+        print("Starting at ",datetime.now().strftime('%H:%M:%S'))
+        self.hidden_layer_size_list = [600,400,256,64,16]
+        self.input_size = 784
+        self.output_size = 10
+        self.batch_size = 50
+        self.param_list=[]
+        for layer_size in self.hidden_layer_size_list:
+            self.add_hidden_layer(layer_size)
+            
+        self.add_hidden_layer(self.output_size)
+
+    def add_hidden_layer(self,layer_size):
+        if(len(self.param_list)>0):
+            prev_layer_size = self.param_list[-1].data.shape[1]
+        else:
+            prev_layer_size = self.input_size
+        print(prev_layer_size,layer_size)
+        self.param_list.append(nn.Parameter(prev_layer_size,layer_size))
+        self.param_list.append(nn.Parameter(1,layer_size))
+
+    def ReLU_output(self,x,W,b):
+        return (nn.ReLU(nn.AddBias(nn.Linear(x,W),b)))
 
     def run(self, x):
         """
@@ -152,7 +199,14 @@ class DigitClassificationModel(object):
                 (also called logits)
         """
         "*** YOUR CODE HERE ***"
-
+        h=x
+        for i in range(len(self.param_list)):
+            '''Running logic the hidden layers'''
+            if(i%2==0 and i < len(self.param_list)-2):
+                h =  self.ReLU_output(h,self.param_list[i],self.param_list[i+1])
+        
+        '''For output layer'''
+        return nn.AddBias(nn.Linear(h,self.param_list[-2]),self.param_list[-1])
     def get_loss(self, x, y):
         """
         Computes the loss for a batch of examples.
@@ -167,12 +221,29 @@ class DigitClassificationModel(object):
         Returns: a loss node
         """
         "*** YOUR CODE HERE ***"
+        return nn.SoftmaxLoss(self.run(x),y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
         "*** YOUR CODE HERE ***"
+        alpha = -0.01
+        convergent = False
+        iter=0
+        while(not convergent):
+            validation_accuracy = 0
+            iter+=1
+            for x,y in dataset.iterate_once(self.batch_size):
+                loss = self.get_loss(x,y)
+                grad_param_list = nn.gradients(loss, self.param_list)
+                for i in range(len(self.param_list)):
+                    self.param_list[i].update(grad_param_list[i],alpha)
+                
+            validation_accuracy = dataset.get_validation_accuracy()
+            print(str(iter)+ "-  " + str(validation_accuracy))
+            if(validation_accuracy>0.97):
+                convergent = True
 
 class LanguageIDModel(object):
     """
