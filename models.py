@@ -242,7 +242,7 @@ class DigitClassificationModel(object):
                 
             validation_accuracy = dataset.get_validation_accuracy()
             print(str(iter)+ "-  " + str(validation_accuracy))
-            if(validation_accuracy>0.97):
+            if(validation_accuracy>0.975):
                 convergent = True
 
 class LanguageIDModel(object):
